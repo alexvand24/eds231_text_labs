@@ -17,9 +17,9 @@ library(ggplot2) #plot word frequencies and publication dates
 
 
 ```{r}
-# create an object called x with the results of our query ("haaland")
+# create an object called x with the results of our query ("haaland" --> "katrina")
 # the from JSON flatten the JSON object, then convert to a data frame
-t <- fromJSON("http://api.nytimes.com/svc/search/v2/articlesearch.json?q=haaland&api-key=NTKBHbsb6XFEkGymGumAiba7n3uBvs8V", flatten = TRUE) #the string following "key=" is your API key 
+t <- fromJSON("http://api.nytimes.com/svc/search/v2/articlesearch.json?q=katrina&api-key=NTKBHbsb6XFEkGymGumAiba7n3uBvs8V", flatten = TRUE) #the string following "key=" is your API key 
 
 class(t) #what type of object is t?
 
@@ -35,28 +35,28 @@ names(t) # what variables are we working with?
 ```
 
 
-```{r}
+```{r eval = FALSE}
 t$response.docs.snippet[9]
 
 #assign a snippet to x to use as fodder for stringr functions.  You can follow along using the sentence on the next line.
 
-x <- "Her nomination as secretary of the interior is historic, but as the first Native cabinet member, she would have to strike a delicate balance." 
+x <- "The ruin of a region and the historic city of New Orleans could not be more important, and the tangle of destruction is nowhere near unwound." 
 
-tolower(x)
-str_split(x, ','); str_split(x, 't')
-str_replace(x, 'historic', 'without precedent')
-str_replace(x, ' ', '_') # first one
-str_replace_all(x, ' ', '_') # how do we replace all of them?
-
-str_detect(x, 't'); str_detect(x, 'tive') ### is pattern in the string? T/F
-str_locate(x, 't'); str_locate_all(x, 'as')
+# tolower(x)
+# str_split(x, ','); str_split(x, 't')
+# str_replace(x, 'historic', 'without precedent')
+# str_replace(x, ' ', '_') # first one
+# str_replace_all(x, ' ', '_') # how do we replace all of them?
+# 
+# str_detect(x, 't'); str_detect(x, 'tive') ### is pattern in the string? T/F
+# str_locate(x, 't'); str_locate_all(x, 'as')
 ```
 
 
 ```{r}
-term <- "Haaland" # Need to use + to string together separate words
-begin_date <- "20210120"
-end_date <- "20220401"
+term <- "Katrina" # Need to use + to string together separate words
+begin_date <- "20050823" # start of Hurricane Katrina
+end_date <- "20050906" # two weeks later
 
 #construct the query url using API operators
 baseurl <- paste0("http://api.nytimes.com/svc/search/v2/articlesearch.json?q=",term,
@@ -86,11 +86,11 @@ rbind(pages)
 ```
 
 
-
+********************if code worked, start HERE********************************
 ```{r}
-nytDat <- read.csv("nytDat.csv") # obtained from 
+# nytDat <- read.csv("nytDat.csv") # obtained from 
 
-nytDat %>% 
+nytSearch %>% 
   group_by(response.docs.type_of_material) %>%
   summarize(count=n()) %>%
   mutate(percent = (count / sum(count))*100) %>%
@@ -99,7 +99,7 @@ nytDat %>%
 ```
 
 ```{r}
-nytDat %>%
+nytSearch %>%
   mutate(pubDay=gsub("T.*","",response.docs.pub_date)) %>% # remove time component
   group_by(pubDay) %>%
   summarise(count=n()) %>%
@@ -110,13 +110,13 @@ nytDat %>%
 
 
 ```{r}
-names(nytDat)
+names(nytSearch)
 ```
 
 
 ```{r}
-paragraph <- names(nytDat)[6] #The 6th column, "response.doc.lead_paragraph", is the one we want here.  
-tokenized <- nytDat %>%
+paragraph <- names(nytSearch)[6] #The 6th column, "response.doc.lead_paragraph", is the one we want here.  
+tokenized <- nytSearch %>%
   unnest_tokens(word, paragraph) # convert from text to tidy text format
                                  # change from paragraph to a collection of single words
 
@@ -150,9 +150,9 @@ tokenized %>%
 #inspect the list of tokens (words)
 tokenized$word
 
-clean_tokens <- str_replace_all(tokenized$word,"land[a-z,A-Z]*","land") #stem tribe words
+clean_tokens <- str_replace_all(tokenized$word,"hurricane*","hurricane") #stem tribe words
 clean_tokens <- str_remove_all(clean_tokens, "[:digit:]") #remove all numbers
-clean_tokens <- str_remove_all(clean_tokens, "washington")
+#clean_tokens <- str_remove_all(clean_tokens, "washington")
 clean_tokens <- gsub("’s", '', clean_tokens)
 
 tokenized$clean <- clean_tokens
