@@ -79,18 +79,21 @@ for(i in 0:maxPages){
   pages[[i+1]] <- nytSearch 
   Sys.sleep(6) 
 }
-class(nytSearch)
 
-#need to bind the pages and create a tibble from nytDa
-rbind(pages)
 ```
+
+```{r}
+nytDat <- rbind_pages(pages)
+write_csv(nytDat, "nytDat.csv")
+```
+
 
 
 ********************if code worked, start HERE********************************
 ```{r}
-# nytDat <- read.csv("nytDat.csv") # obtained from 
+nytDat <- read.csv("nytDat.csv") # obtained from 
 
-nytSearch %>% 
+nytDat %>% 
   group_by(response.docs.type_of_material) %>%
   summarize(count=n()) %>%
   mutate(percent = (count / sum(count))*100) %>%
@@ -99,7 +102,7 @@ nytSearch %>%
 ```
 
 ```{r}
-nytSearch %>%
+nytDat %>%
   mutate(pubDay=gsub("T.*","",response.docs.pub_date)) %>% # remove time component
   group_by(pubDay) %>%
   summarise(count=n()) %>%
@@ -109,14 +112,10 @@ nytSearch %>%
 ```
 
 
-```{r}
-names(nytSearch)
-```
-
 
 ```{r}
-paragraph <- names(nytSearch)[6] #The 6th column, "response.doc.lead_paragraph", is the one we want here.  
-tokenized <- nytSearch %>%
+paragraph <- names(nytDat)[6] #The 6th column, "response.doc.lead_paragraph", is the one we want here.  
+tokenized <- nytDat %>%
   unnest_tokens(word, paragraph) # convert from text to tidy text format
                                  # change from paragraph to a collection of single words
 
@@ -148,25 +147,36 @@ tokenized %>%
 
 ```{r}
 #inspect the list of tokens (words)
-tokenized$word
+# tokenized$word
 
-clean_tokens <- str_replace_all(tokenized$word,"hurricane*","hurricane") #stem tribe words
-clean_tokens <- str_remove_all(clean_tokens, "[:digit:]") #remove all numbers
-#clean_tokens <- str_remove_all(clean_tokens, "washington")
-clean_tokens <- gsub("’s", '', clean_tokens)
+clean_tokens <- str_replace_all(tokenized$word,"hurricane*","hurricane") %>%
+                str_remove_all("[:digit:]") %>%  #remove all numbers
+                str_remove_all("day$")      %>%  #remove days of the week
+                str_remove_all("’s")        %>%  #remove Katrina's
+                str_remove_all("'s")        %>%  #remove Katrina's different font
+                str_remove_all("aug")       %>%  #remove month august
+                str_remove_all("sept")      %>%  #remove month september
+                str_remove_all("yester")    %>%  #remove yesterday
+                str_remove_all("wednes")         #remove wednesday
 
 tokenized$clean <- clean_tokens
 
 tokenized %>%
   count(clean, sort = TRUE) %>%
-  filter(n > 10) %>% #illegible with all the words displayed
+  filter(n > 15) %>% #illegible with all the words displayed
   mutate(clean = reorder(clean, n)) %>%
   ggplot(aes(n, clean)) +
   geom_col() +
   labs(y = NULL)
+```
 
+
+```{r}
 #remove the empty strings
-tib <-subset(tokenized, clean!="")
+tib <- tokenized %>% 
+         subset(clean!= "") %>% 
+         subset(clean!=".") %>% 
+         subset(clean!="a")
 
 #reassign
 tokenized <- tib
@@ -174,7 +184,7 @@ tokenized <- tib
 #try again
 tokenized %>%
   count(clean, sort = TRUE) %>%
-  filter(n > 10) %>% #illegible with all the words displayed
+  filter(n > 15) %>% #illegible with all the words displayed
   mutate(clean = reorder(clean, n)) %>%
   ggplot(aes(n, clean)) +
   geom_col() +
