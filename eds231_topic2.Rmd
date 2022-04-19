@@ -1,5 +1,5 @@
 ---
-title: "Topic 2"
+title: "Topic 2: Text Data in R"
 author: "Alexandra Yousefivand"
 date: "4/6/2022"
 output: html_document
@@ -12,7 +12,7 @@ library(jsonlite) #convert results from API queries into R-friendly formats
 library(tidyverse) 
 library(tidytext) #text data management and analysis
 library(ggplot2) #plot word frequencies and publication dates
-library(pubr) #visually arrange ggplots
+library(ggpubr) #visually arrange ggplots
 ```
 
 
@@ -113,7 +113,7 @@ nytDat %>%
 ## Paragraph
 
 
-```{r paragraph}
+```{r 1p}
 paragraph <- names(nytDat)[6] #The 6th column, "response.doc.lead_paragraph", is the one we want here.  
 tokenized <- nytDat %>%
   unnest_tokens(word, paragraph) # convert from text to tidy text format
@@ -121,7 +121,7 @@ tokenized <- nytDat %>%
 
 tokenized %>%
   count(word, sort = TRUE) %>%
-  filter(n > 5) %>% #illegible with all the words displayed
+  filter(n > 15) %>% #illegible with all the words displayed
   mutate(word = reorder(word, n)) %>%
   ggplot(aes(n, word)) +
   geom_col() +
@@ -129,7 +129,7 @@ tokenized %>%
 ```
 
 
-```{r}
+```{r 2p}
 data(stop_words)
 
 tokenized <- tokenized %>%
@@ -145,7 +145,7 @@ tokenized %>%
 ```
 
 
-```{r}
+```{r 3p}
 #inspect the list of tokens (words)
 # tokenized$word
 
@@ -168,12 +168,12 @@ tokenized %>%
   filter(n > 5) %>% #illegible with all the words displayed
   mutate(clean = reorder(clean, n)) %>%
   ggplot(aes(n, clean)) +
-  geom_col() +
-  labs(y = NULL)
+    geom_col() +
+    labs(y = NULL)
 ```
 
 
-```{r}
+```{r paragraph}
 #remove the empty strings
 tib <- tokenized %>% 
          subset(clean!= "") %>% 
@@ -197,8 +197,8 @@ plot_paragraph <- tokenized %>%
 ```
 
 ## Headline
-```{r headline}
-headline <- names(nytDat)[21] #24th column "response.docs.headline.print_headline"  
+```{r 1h}
+headline <- names(nytDat)[20] #24th column "response.docs.headline.print_headline"  
 tokenized <- nytDat %>%
   unnest_tokens(word, headline) # convert from text to tidy text format
                                  # change from headline to a collection of single words
@@ -213,7 +213,7 @@ tokenized %>%
 ```
 
 
-```{r}
+```{r 2h}
 data(stop_words)
 
 tokenized <- tokenized %>%
@@ -229,7 +229,7 @@ tokenized %>%
 ```
 
 
-```{r}
+```{r 3h}
 #inspect the list of tokens (words)
 # tokenized$word
 
@@ -248,17 +248,16 @@ clean_tokens <- str_replace_all(tokenized$word,"hurricane*", "hurricane") %>%
 
 tokenized$clean <- clean_tokens
 
-plot_headline <-tokenized %>%
-                  count(clean, sort = TRUE) %>%
-                  filter(n > 15) %>% #illegible with all the words displayed
-                  mutate(clean = reorder(clean, n)) %>%
-                  ggplot(aes(n, clean)) +
-                    geom_col() +
-                    labs(y = NULL) +
-                    ggtitle("Paragraph")
+tokenized %>%
+  count(clean, sort = TRUE) %>%
+  filter(n > 5) %>% #illegible with all the words displayed
+  mutate(clean = reorder(clean, n)) %>%
+  ggplot(aes(n, clean)) +
+    geom_col() +
+    labs(y = NULL)
 ```
 
-```{r}
+```{r headline}
 #remove the empty strings
 tib <- tokenized %>% 
          subset(clean!= "") %>% 
@@ -277,8 +276,8 @@ plot_headline <- tokenized %>%
                   mutate(clean = reorder(clean, n)) %>%
                   ggplot(aes(n, clean)) +
                     geom_col() +
-                    labs(y = NULL,
-                         title = "Headline")
+                    labs(y = NULL) +
+                    ggtitle("Headline")
 ```
 
 ## Compare
@@ -287,3 +286,4 @@ plot_headline <- tokenized %>%
 ggarrange(plot_paragraph, plot_headline)
 ```
 
+Many frequent paragraph words and headline words overlap. One interesting word "relief" often appears in the headlines, but not in the first paragraph.
