@@ -2,7 +2,7 @@
 title: "Topic 2: Text Data in R"
 author: "Alexandra Yousefivand"
 date: "4/6/2022"
-output: html_document
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
