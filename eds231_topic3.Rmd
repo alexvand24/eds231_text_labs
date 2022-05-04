@@ -2,7 +2,7 @@
 title: "Topic 3 - Sentiment Analysis I"
 author: "Alex Vand"
 date: "4/13/2022"
-output: html_document
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
@@ -147,17 +147,24 @@ book_sent_counts %>%
 #setwd("/Users/mateorobbins/Desktop/Git/test/nexis_dat")
 #to follow along with this example, download this .docx to your working directory: 
 #https://github.com/MaRo406/EDS_231-text-sentiment/blob/main/nexis_dat/Nexis_IPCC_Results.docx
-my_files <- list.files(pattern = ".docx", path = getwd(),
-                       full.names = TRUE, recursive = TRUE, ignore.case = TRUE)
+my_files <- list.files(pattern = ".docx",
+                       path = getwd()),
+                       full.names = TRUE,
+                       recursive = TRUE,
+                       ignore.case = TRUE)
 dat <- lnt_read(my_files) #Object of class 'LNT output'
 meta_df <- dat@meta
 articles_df <- dat@articles
 paragraphs_df <- dat@paragraphs
-dat2<- data_frame(element_id = seq(1:length(meta_df$Headline)), Date = meta_df$Date, Headline = meta_df$Headline)
+dat2<- data_frame(element_id = seq(1:length(meta_df$Headline)),
+                  Date = meta_df$Date,
+                  Headline = meta_df$Headline)
+
 #May be of use for assignment: using the full text from the articles
-# paragraphs_dat <- data_frame(element_id = paragraphs_df$Art_ID, Text  = paragraphs_df$Paragraph)
-# 
-# dat3 <- inner_join(dat2,paragraphs_dat, by = "element_id")
+#paragraphs_dat <- data_frame(element_id = paragraphs_df$Art_ID,
+#                             Text  = paragraphs_df$Paragraph)
+ 
+#dat3 <- inner_join(dat2,paragraphs_dat, by = "element_id")
 ```
 
 ```{r}
@@ -169,8 +176,21 @@ sentiment <- sentiment_by(sent_df$Headline)
 sent_df %>%
   arrange(sentiment)
 
-sent_df$polarity <- ifelse(sent_df$sentiment <0, -1, ifelse(sent_df$sent)
+sent_df$polarity <- ifelse(sent_df$sentiment <0, -1,
+                      ifelse(sent_df$sentiment > 0, 1, 0))
 ```
+
+
+```{r}
+#Froelich et al plot: mean sentiment by day
+#summarize plot x = day, y = sentiment
+
+ggplot(data = dat3, aes(x = Date,
+                        y = mean(sentiment))) +
+         geom_line()
+```
+
+
 
 ```{r custom_stop_words}
 custom_stop_words <- bind_rows(tibble(word = c("your_word"),  
