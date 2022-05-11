@@ -2,7 +2,7 @@
 title: "Topic 4: Sentiment Analysis II"
 author: "Alex Vand"
 date: "4/20/2022"
-output: html_document
+output: pdf_document
 ---
 
 

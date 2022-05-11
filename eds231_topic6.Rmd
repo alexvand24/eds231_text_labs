@@ -2,7 +2,7 @@
 title: "Topic 6: Topic Analysis"
 author: "Alex Vand"
 date: "5/4/2022"
-output: html_document
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
