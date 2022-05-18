@@ -54,7 +54,7 @@ incidents_rec <- recipe(fatal ~ Text, data = incidents_train)
 
 Next we add some familiar pre-processing steps on our Text variable: tokenize to word level, filter to the most common words, and calculate tf-idf.
 
-```{r ***pre-process}
+```{r pre-process}
 recipe <- incidents_rec %>%
   step_tokenize(Text) %>%
   step_tokenfilter(Text, max_tokens = 1000) %>%
