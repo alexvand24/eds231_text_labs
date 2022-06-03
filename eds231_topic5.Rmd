@@ -23,6 +23,7 @@ library(quanteda.textplots)
 library(widyr)# pairwise correlations
 library(igraph) #network plots
 library(ggraph)
+library(here)
 ```
 
 ```{r setup, include=FALSE}
@@ -33,11 +34,12 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r pdf_import}
 #setwd('dat/')
-files <- list.files(pattern = "pdf$")
+files <- list.files(path = here("dat"), pattern = "*EPA", full.names = TRUE)
 ej_reports <- lapply(files, pdf_text)
-ej_pdf <- readtext("*.pdf", docvarsfrom = "filenames", 
-                    docvarnames = c("type", "year"),
-                    sep = "_")
+ej_pdf <- readtext(file = here("dat", "*.pdf"),
+                   docvarsfrom = "filenames", 
+                   docvarnames = c("type", "year"),
+                   sep = "_")
 #creating an initial corpus containing our data
 epa_corp <- corpus(x = ej_pdf, text_field = "text" )
 summary(epa_corp)
@@ -86,7 +88,7 @@ word_pairs %>%
   filter(n >= 100) %>%
   graph_from_data_frame() %>%
   ggraph(layout = "fr") +
-  geom_edge_link(aes(edge_alpha = 'n', edge_width = 'n'),
+  geom_edge_link(aes(edge_alpha = n, edge_width = n),
                  edge_colour = "dodgerblue") +
   geom_node_point(size = 5) +
   geom_node_text(aes(label = name), repel = TRUE, 
@@ -188,6 +190,8 @@ dfm2 <- dfm_remove(dfm2, pattern = c(stop_vec))
 freq_words2 <- textstat_frequency(dfm2, n=20)
 freq_words2$token <- rep("bigram", 20)
 #tokens1 <- tokens_select(tokens1,pattern = stopwords("en"), selection = "remove")
+
+head(freq_words2)
 ```
 
 Now we can upgrade that by using all of the frequencies for each word in each document and calculating a chi-square to see which words occur significantly more or less within a particular target document
@@ -209,8 +213,121 @@ Assignment
 
 1.  What are the most frequent trigrams in the dataset? How does this compare to the most frequent bigrams? Which n-gram seems more informative here, and why?
 
+```{r convert_dfm}
+toks3 <- tokens_ngrams(toks1, n=3)
+dfm3 <- dfm(toks3)
+dfm3 <- dfm_remove(dfm3, pattern = c(stop_vec))
+freq_words3 <- textstat_frequency(dfm3, n=20)
+freq_words3$token <- rep("trigram", 20)
+#tokens1 <- tokens_select(tokens1,pattern = stopwords("en"), selection = "remove")
+
+head(freq_words3)
+```
+
+bi gram more informative
+
+
 2.  Choose a new focal term to replace "justice" and recreate the correlation table and network (see corr_paragraphs and corr_network chunks). Explore some of the plotting parameters in the cor_network chunk to see if you can improve the clarity or amount of information your plot conveys. Make sure to use a different color for the ties!
+
+```{r corr_paragraphs}
+ word_cors <- par_words %>% 
+  add_count(par_id) %>% 
+  filter(n >= 50) %>% 
+  select(-n) %>%
+  pairwise_cor(word, par_id, sort = TRUE)
+
+just_cors <- word_cors %>% 
+  filter(item1 == "income")
+  word_cors %>%
+  filter(item1 %in% c("environmental", "justice", "equity", "income"))%>%
+  group_by(item1) %>%
+  top_n(6) %>%
+  ungroup() %>%
+  mutate(item1 = as.factor(item1),
+  name = reorder_within(item2, correlation, item1)) %>%
+  ggplot(aes(y = name, x = correlation, fill = item1)) + 
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~item1, ncol = 2, scales = "free")+
+  scale_y_reordered() +
+  labs(y = NULL,
+         x = NULL,
+         title = "Correlations with key words",
+         subtitle = "EPA EJ Reports")
+  
+  #let's zoom in on just one of our key terms
+   income_cors <- word_cors %>%
+     filter(item1 == "income") %>%
+     mutate(n = 1:n())
+ 
+```
+
+
+```{r corr_network}
+justice_cors  %>%
+  filter(n <= 50) %>%
+  graph_from_data_frame() %>%
+  ggraph(layout = "fr") +
+  geom_edge_link(aes(edge_alpha = correlation,
+                     edge_width = correlation),
+                     edge_colour = "magenta") +
+  geom_node_point(size = 5) +
+  geom_node_text(aes(label = name), repel = TRUE, 
+                 point.padding = unit(0.2, "lines")) +
+  theme_void()
+```
 
 3.  Write a function that allows you to conduct a keyness analysis to compare two individual EPA reports (hint: that means target and reference need to both be individual reports). Run the function on 3 pairs of reports, generating 3 keyness plots.
 
+```{r}
+keyness_fn <- function(){
+  for (i in 1:3) {
+    reports <- epa_corp[i:(i+1)]
+    
+    reps_tok <- tokens(reports, remove_punct = TRUE)
+    
+    reps <- tokens_select(reps_tok, min_nchar = 3) %>% 
+      tokens_tolower() %>% 
+      tokens_remove(pattern = (stop_vec))
+    
+    dfm <- dfm(reps)
+    
+    keyness <- textstat_keyness(dfm, target = 2)
+    
+    print(textplot_keyness(keyness))
+  }
+}
+keyness_fn()
+```
+
 4.  Select a word or multi-word term of interest and identify words related to it using windowing and keyness comparison. To do this you will create to objects: one containing all words occurring within a 10-word window of your term of interest, and the second object containing all other words. Then run a keyness comparison on these objects. Which one is the target, and which the reference? [Hint](https://tutorials.quanteda.io/advanced-operations/target-word-collocations/)
+
+
+
+```{r}
+#followed the tutorial linked above
+word <- c("water")
+
+window_inside <- tokens_keep(toks1, 
+                         pattern = word, 
+                         window = 10) %>% 
+  tokens_remove(pattern = word) %>% 
+  tokens_tolower() %>% 
+  tokens_remove(pattern = (stop_vec))
+
+dfm_inside <- dfm(window_inside)
+
+window_outside <- tokens_remove(toks1, 
+                            pattern = word, 
+                            window = 10) %>% 
+  tokens_tolower() %>% 
+  tokens_remove(patter = (stop_vec))
+
+dfm_outside <- dfm(window_outside)
+
+dfms <- rbind(dfm_inside, dfm_outside)
+
+keyness_inside <- textstat_keyness(dfms,
+                               target = seq_len(ndoc(dfm_inside)))
+keyness_inside[1:10] %>% #just getting teh first ten
+  kable()
+```
