@@ -24,6 +24,7 @@ library(tidytext)
 library(lubridate)
 library(wordcloud) #visualization of common words in the data set
 library(reshape2)
+library(sentimentr)
 ```
 
 Last week we used the tidytext approach to sentiment analysis for Nexis Uni .pdf data on coverage of the recent IPCC report. This week we will look at the conversation on Twitter about the same report. We'll start with the familiar tidy approach, and then introduce the quanteda package later.
@@ -32,10 +33,10 @@ Last week we used the tidytext approach to sentiment analysis for Nexis Uni .pdf
 
 raw_tweets <- read.csv("https://raw.githubusercontent.com/MaRo406/EDS_231-text-sentiment/main/dat/IPCC_tweets_April1-10_sample.csv", header=TRUE)
 
-dat <- raw_tweets[,c(5,7)] # Extract Date and Title fields
+dat <- raw_tweets[,c(4,6)] # Extract Date and Title fields
 
 tweets <- tibble(text = dat$Title,
-                  id = seq(1:length(dat$Title)),
+                 id = seq(1:length(dat$Title)),
                  date = as.Date(dat$Date,'%m/%d/%y'))
 
 
@@ -222,10 +223,154 @@ You will use the tweet data from class today for each part of the following assi
 
 1.  Think about how to further clean a twitter data set. Let's assume that the mentions of twitter accounts is not useful to us. Remove them from the text field of the tweets tibble.
 
+```{r cleaning_tweets}
+
+#let's clean up the URLs from the tweets
+tweets$text <- gsub("http[^[:space:]]*", "",tweets$text)
+tweets$text <- str_to_lower(tweets$text)
+
+# remove twitter account mentions
+tweets$text <- gsub("@[^[:space:]]*", "",tweets$text)
+
+#load sentiment lexicons
+bing_sent <- get_sentiments('bing')
+nrc_sent <- get_sentiments('nrc')
+
+#tokenize tweets to individual words
+words <- tweets %>%
+  select(id, date, text) %>%
+  unnest_tokens(output = word, input = text, token = "words") %>%
+  anti_join(stop_words, by = "word") %>%
+  left_join(bing_sent, by = "word") %>%
+  left_join(
+    tribble(
+      ~sentiment, ~sent_score,
+      "positive", 1,
+      "negative", -1),
+    by = "sentiment")
+```
+
 2.  Compare the ten most common terms in the tweets per day.  Do you notice anything interesting?
+
+```{r}
+# find 10 most common words
+word_counts <- count(words, word, sort = TRUE)
+
+ten_most_common_words <- word_counts[1:10,]
+```
+
+```{r}
+common_words <- words %>% 
+  subset(word %in% ten_most_common_words$word)
+```
+
+```{r}
+common_words_by_date <- common_words %>% 
+  group_by(date) %>% 
+  count(word)
+```
+
+```{r}
+ggplot(data = common_words_by_date, aes(x = date, y = n)) +
+  geom_line(aes(color = word)) +
+  labs(title = "10 most common words in tweets by date",
+       y = "number of tweets")
+```
+
+
 
 3.  Adjust the wordcloud in the "wordcloud" chunk by coloring the positive and negative words so they are identifiable.
 
+```{r wordcloud}
+words %>%
+   anti_join(stop_words) %>%
+   count(word) %>%
+   with(wordcloud(word, n, max.words = 100))
+```
+
+
+```{r wordcloud_comp}
+
+words %>%
+inner_join(get_sentiments("bing")) %>%
+count(word, sentiment, sort = TRUE) %>%
+acast(word ~ sentiment, value.var = "n", fill = 0) %>%
+comparison.cloud(colors = c("red", "darkgreen"),
+                   max.words = 100)
+```
+
 4. Let's say we are interested in the most prominent entities in the Twitter discussion.  Which are the top 10 most tagged accounts in the data set. Hint: the "explore_hashtags" chunk is a good starting point.
 
-5. The Twitter data download comes with a variable called "Sentiment" that must be calculated by Brandwatch.  Use your own method to assign each tweet a polarity score (Positive, Negative, Neutral) and compare your classification to Brandwatch's (hint: you'll need to revisit the "raw_tweets" data frame).   
+```{r explore_hashtags}
+tagged_tweets <- tokens(corpus, remove_punct = TRUE) %>% 
+               tokens_keep(pattern = "@*") #capture all tags
+
+dfm_tagged <- dfm(tagged_tweets) #document feature matrix is an advanced text opject = matrix shows the location of each of the words in corpus
+
+tstat_freq <- textstat_frequency(dfm_hash, n = 100) #non-tidy object into tidy format
+head(tstat_freq, 10) 
+
+#tidytext gives us tools to convert to tidy from non-tidy formats
+tagged_tib <- tidy(dfm_tagged)
+
+tagged_tib %>%
+   count(term) %>%
+   with(wordcloud(term, n, max.words = 100))
+```
+
+5. The Twitter data download comes with a variable called "Sentiment" that must be calculated by Brandwatch.  Use your own method to assign each tweet a polarity score (Positive, Negative, Neutral) and compare your classification to Brandwatch's (hint: you'll need to revisit the "raw_tweets" data frame).
+
+```{r sentiment score}
+#data cleaning and wrangling 
+
+data_text <- raw_tweets[,c(4,6)] 
+
+tweets_text <- tibble(text = data_text$Title,
+                  id = seq(1:length(data_text$Title)),
+                 date = as.Date(data_text$Date,'%m/%d/%y'))
+
+tweets_text$text <- gsub("http[^[:space:]]*", "",tweets_text$text)
+tweets_text$text <- str_to_lower(tweets_text$text)
+
+tweets_text$text <- gsub("@[^[:space:]]*", "",tweets_text$text)
+
+
+sentiment_text <- get_sentences(tweets_text$text) %>% 
+  sentiment() %>% 
+  rename(sentiment_score = sentiment) %>% 
+  group_by(element_id) %>% 
+  summarize(sentiment_score = mean(sentiment_score))
+
+sentiment_text$sentiment <- ifelse(sentiment_text$sentiment_score < 0, "Negative",                                       ifelse(sentiment_text$sentiment_score > 0, "Positive", "Neutral"))
+
+
+
+#Now we have to get the number of tweets with each sentiment type 
+raw_sentiment <- sentiment_text %>%
+  group_by(sentiment) %>% 
+  summarize(sentiment_count = n())
+
+#Plot the count per sentiment 
+ggplot(data = raw_sentiment,
+       aes(x = Sentiment, y = sentiment_count)) +
+  geom_bar(stat = "identity", aes(fill = Sentiment)) +
+  labs(title = "Sentiment Classification",
+           x = "Sentiment",
+           y = "Count")
+```
+
+```{r}
+raw_sentiment <- raw_tweets %>%
+  group_by(Sentiment) %>% 
+  summarize(sentiment_count = n())
+
+ggplot(data = raw_sentiment,
+       aes(x = Sentiment, y = sentiment_count)) +
+  geom_bar(stat = "identity", aes(fill = Sentiment)) +
+  labs(title = "Brandwatch Sentiment Classification",
+           x = "Sentiment",
+           y = "Count")
+```
+more neutral words in brandwatch than when using `sentimentr` package.
+
+
