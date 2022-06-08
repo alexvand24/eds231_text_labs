@@ -96,59 +96,7 @@ word_pairs %>%
   theme_void()
 ```
 
-Hmm, interesting, but maybe we further subset the word pairs to get a cleaner picture of the most common ones by raising the cutoff for number of occurrences (n).
 
-Pairs like "environmental" and "justice" are the most common co-occurring words, but that doesn't give us the full picture as they're also the most common individual words. We can also look at correlation among words, which tells us how often they appear together relative to how often they appear separately.
-
-```{r corr_paragraphs}
- word_cors <- par_words %>% 
-  add_count(par_id) %>% 
-  filter(n >= 50) %>% 
-  select(-n) %>%
-  pairwise_cor(word, par_id, sort = TRUE)
-
-just_cors <- word_cors %>% 
-  filter(item1 == "justice")
-  word_cors %>%
-  filter(item1 %in% c("environmental", "justice", "equity", "income"))%>%
-  group_by(item1) %>%
-  top_n(6) %>%
-  ungroup() %>%
-  mutate(item1 = as.factor(item1),
-  name = reorder_within(item2, correlation, item1)) %>%
-  ggplot(aes(y = name, x = correlation, fill = item1)) + 
-  geom_col(show.legend = FALSE) +
-  facet_wrap(~item1, ncol = 2, scales = "free")+
-  scale_y_reordered() +
-  labs(y = NULL,
-         x = NULL,
-         title = "Correlations with key words",
-         subtitle = "EPA EJ Reports")
-  
-  #let's zoom in on just one of our key terms
-   justice_cors <- word_cors %>% 
-  filter(item1 == "justice") %>%
-   mutate(n = 1:n())
- 
-```
-
-Not surprisingly, the correlation between "environmental" and "justice" is by far the highest, which makes sense given the nature of these reports. How might we visualize these correlations to develop of sense of the context in which justice is discussed here?
-
-```{r corr_network}
-justice_cors  %>%
-  filter(n <= 50) %>%
-  graph_from_data_frame() %>%
-  ggraph(layout = "fr") +
-  geom_edge_link(aes(edge_alpha = correlation,
-                     edge_width = correlation),
-                     edge_colour = "cyan4") +
-  geom_node_point(size = 5) +
-  geom_node_text(aes(label = name), repel = TRUE, 
-                 point.padding = unit(0.2, "lines")) +
-  theme_void()
-```
-
-Now let's look at the tf-idf term we talked about. Remember, this statistic goes beyond simple frequency calculations within a document to control for overall commonality across documents
 
 ```{r}
 report_tf_idf <- report_words %>%
@@ -183,7 +131,7 @@ head(tstat_freq, 10)
 
 Another useful word relationship concept is that of the n-gram, which essentially means tokenizing at the multi-word level
 
-```{r convert_dfm}
+```{r convert_dfm2}
 toks2 <- tokens_ngrams(toks1, n=2)
 dfm2 <- dfm(toks2)
 dfm2 <- dfm_remove(dfm2, pattern = c(stop_vec))
@@ -213,7 +161,7 @@ Assignment
 
 1.  What are the most frequent trigrams in the dataset? How does this compare to the most frequent bigrams? Which n-gram seems more informative here, and why?
 
-```{r convert_dfm}
+```{r convert_dfm3}
 toks3 <- tokens_ngrams(toks1, n=3)
 dfm3 <- dfm(toks3)
 dfm3 <- dfm_remove(dfm3, pattern = c(stop_vec))
@@ -263,7 +211,7 @@ just_cors <- word_cors %>%
 
 
 ```{r corr_network}
-justice_cors  %>%
+income_cors  %>%
   filter(n <= 50) %>%
   graph_from_data_frame() %>%
   ggraph(layout = "fr") +
@@ -304,7 +252,7 @@ keyness_fn()
 
 
 ```{r}
-#followed the tutorial linked above
+#following tutorial
 word <- c("water")
 
 window_inside <- tokens_keep(toks1, 
@@ -328,6 +276,6 @@ dfms <- rbind(dfm_inside, dfm_outside)
 
 keyness_inside <- textstat_keyness(dfms,
                                target = seq_len(ndoc(dfm_inside)))
-keyness_inside[1:10] %>% #just getting teh first ten
+keyness_inside[1:10] %>%
   kable()
 ```

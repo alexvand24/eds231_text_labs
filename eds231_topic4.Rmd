@@ -2,7 +2,8 @@
 title: "Topic 4: Sentiment Analysis II"
 author: "Alex Vand"
 date: "4/20/2022"
-output: pdf_document
+output:
+  pdf_document: default
 ---
 
 This .Rmd available here: <https://raw.githubusercontent.com/MaRo406/EDS_231-text-sentiment/main/topic_4.Rmd>
@@ -38,8 +39,6 @@ tweets <- tibble(text = dat$Title,
                  date = as.Date(dat$Date,'%m/%d/%y'))
 
 
-head(tweets$text, n = 10)
-
 #simple plot of tweets per day
 tweets %>%
   count(date) %>%
@@ -59,6 +58,9 @@ tweets$text <- str_to_lower(tweets$text)
 
 # remove twitter account mentions
 tweets$text <- gsub("@[^[:space:]]*", "",tweets$text)
+
+# remove non-ASCII characters
+tweets$text <- gsub("[^\x01-\x7F]", "", tweets$text)
 
 #load sentiment lexicons
 bing_sent <- get_sentiments('bing')
@@ -136,8 +138,6 @@ summary(corpus)
 ```{r}
 tokens <- tokens(corpus) #tokenize the text so each doc (page, in this case) is a list of tokens (words)
 
-#examine the uncleaned version
-tokens
 ```
 
 ```{r}
